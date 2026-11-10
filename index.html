@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator</title>
+<style>
+  :root{--bg:#000;--panel:#1a1a1a;--btn2:#2d2d2d;--green:#26c96f;--red:#f04438;--txt:#e6e6e6;--mute:#8a8a8a}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:#000;font-family:system-ui,Roboto,Arial,sans-serif;color:var(--txt)}
+  .app{max-width:460px;height:100%;margin:0 auto;background:var(--bg);position:relative;overflow:hidden}
+  .view{position:absolute;inset:0;display:none;flex-direction:column}
+  .view.active{display:flex}
+  button{background:none;border:0;color:inherit;font:inherit;cursor:pointer}
+  svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ===== KALKULATOR ===== */
+  .topbar{display:flex;justify-content:flex-end;gap:26px;padding:18px 28px 0}
+  .topbar button{padding:6px}
+  .topbar button.on{color:var(--green)}
+  .display{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;padding:20px 28px;overflow:hidden;min-height:80px}
+  .mode{align-self:flex-start;color:var(--mute);font-size:14px;margin-bottom:auto}
+  .expr{font-size:44px;word-break:break-all;text-align:right;line-height:1.15;max-height:100%;overflow:auto}
+  .expr::after{content:"";display:inline-block;width:2px;height:.9em;background:var(--green);margin-left:3px;vertical-align:-3px}
+  .res{font-size:26px;color:var(--mute);min-height:34px}
+  .pad{background:var(--panel);padding:14px 10px 10px;display:flex;gap:6px;position:relative}
+  .grid{display:grid;gap:4px;flex:1}
+  .grid.main{grid-template-columns:repeat(4,1fr)}
+  .grid.sci{grid-template-columns:repeat(3,1fr);display:none;flex:.75}
+  .app.sci-on .grid.sci{display:grid}
+  .grid button{height:64px;font-size:30px;border-radius:16px}
+  .grid.sci button{font-size:20px}
+  .op{color:var(--green)}
+  .clr{color:var(--red)}
+  .eq{background:var(--green);color:#fff;border-radius:20px!important}
+  .pad .hist{position:absolute;inset:0;background:var(--panel);display:none;flex-direction:column}
+  .pad .hist.show{display:flex}
+  .hlist{flex:1;overflow:auto;padding:10px 90px 10px 20px;display:flex;flex-direction:column;justify-content:flex-end;gap:18px;text-align:right}
+  .hlist div{cursor:pointer}
+  .hlist small{display:block;color:var(--mute);font-size:18px}
+  .hlist b{font-weight:400;font-size:30px}
+  .hbar{display:flex;justify-content:space-between;align-items:center;padding:8px 20px 6px}
+  .hbar .eq{width:130px;height:64px;font-size:30px}
+  .hside{position:absolute;right:14px;top:10px;display:flex;flex-direction:column;gap:6px}
+  .hside button{height:64px;width:64px;font-size:28px;color:var(--green)}
+
+  /* landscape = otomatis ilmiah */
+  @media (orientation:landscape) and (max-height:520px){
+    .app{max-width:none}
+    .app .grid.sci{display:grid;flex:1.2}
+    .grid button{height:46px;font-size:24px}
+    .grid.sci button{font-size:18px}
+    .expr{font-size:34px}.display{padding:8px 24px}
+  }
+
+  /* ===== KONVERTER ===== */
+  .head{display:flex;align-items:center;gap:20px;padding:22px 22px 10px;position:relative}
+  .head h2{flex:1;font-weight:500;font-size:22px}
+  .menu{position:absolute;right:16px;top:60px;background:#2a2a2a;border-radius:14px;padding:18px 24px;font-size:20px;display:none;z-index:5}
+  .menu.show{display:block}
+  .tabs{display:flex;gap:30px;padding:10px 24px;overflow-x:auto;color:var(--mute);font-size:19px}
+  .tabs button.on{color:var(--green)}
+  .crows{flex:1;padding:10px 24px;display:flex;flex-direction:column;justify-content:space-around}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+  .row .u{font-size:20px;display:flex;align-items:center;gap:10px}
+  .row select{background:#000;color:var(--txt);border:0;font-size:20px;outline:0}
+  .row .v{text-align:right;font-size:26px;color:var(--mute);word-break:break-all;min-width:0}
+  .row.act .v{color:#fff;font-size:34px}
+  .row.act .v::after{content:"";display:inline-block;width:2px;height:.9em;background:var(--green);margin-left:2px;vertical-align:-3px}
+  .row .sub{display:block;font-size:16px;color:var(--mute)}
+  .upd{text-align:center;color:var(--mute);font-size:14px;padding:12px}
+  .kp{background:var(--panel);display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,70px);gap:8px;padding:14px}
+  .kp button{font-size:32px;border-radius:16px}
+  .kp .ac,.kp .bs{background:var(--btn2);color:var(--green);grid-column:4}
+  .kp .ac{grid-row:1/3}.kp .bs{grid-row:3/5}
+
+  /* ===== KEBIJAKAN PRIVASI ===== */
+  .policy{flex:1;overflow:auto;padding:24px 22px;background:#1a1a1a;font-size:19px;line-height:1.6}
+  .policy h1{text-align:center;font-size:28px;margin-bottom:20px}
+  .policy p{margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ====== KALKULATOR ====== -->
+  <section class="view active" id="v-calc">
+    <div class="topbar">
+      <button id="bHist" title="Riwayat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+      <button id="bCur" title="Mata uang"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.500-1.500-2.500-1.500-1.400 0-2.500.8-2.500 2s1 1.700 2.500 2 2.500.8 2.500 2-1.100 2-2.500 2c-1 0-2-.5-2.500-1.500M12 6.500V8m0 8v1.500"/></svg></button>
+      <button id="bUnit" title="Satuan"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1.500" transform="rotate(-45 12 12)"/><path d="M8 12l1.500 1.500M11 9l1.500 1.500M14 6l1.500 1.500"/></svg></button>
+    </div>
+    <div class="display">
+      <div class="mode" id="modeLbl">DEG</div>
+      <div class="expr" id="expr"></div>
+      <div class="res" id="res"></div>
+    </div>
+    <div class="pad">
+      <div class="grid sci" id="sci"></div>
+      <div class="grid main" id="main"></div>
+
+      <!-- Riwayat -->
+      <div class="hist" id="hist">
+        <div class="hlist" id="hlist"></div>
+        <div class="hside">
+          <button data-k="⌫">⌫</button><button data-k="÷">÷</button><button data-k="×">×</button><button data-k="−">−</button><button data-k="+">+</button>
+        </div>
+        <div class="hbar">
+          <button id="hBack"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+          <button id="hClear"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
+          <button class="eq" id="hEq">=</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== KONVERTER (mata uang & satuan) ====== -->
+  <section class="view" id="v-conv">
+    <div class="head">
+      <button id="cBack"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <h2 id="cTitle"></h2>
+      <button id="cMenu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+      <div class="menu" id="menu"><button id="goPolicy">Kebijakan privasi</button></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="crows" id="crows"></div>
+    <div class="upd" id="upd"></div>
+    <div class="kp" id="kp">
+      <button>7</button><button>8</button><button>9</button><button class="ac" data-k="AC">AC</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>1</button><button>2</button><button>3</button><button class="bs" data-k="⌫">⌫</button>
+      <button>00</button><button>0</button><button>,</button>
+    </div>
+  </section>
+
+  <!-- ====== KEBIJAKAN PRIVASI ====== -->
+  <section class="view" id="v-policy">
+    <div class="head"><button id="pBack"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><h2>Kebijakan privasi</h2></div>
+    <div class="policy">
+      <h1>Kebijakan Privasi</h1>
+      <p>Diperbarui pada: 1 Januari 2026</p>
+      <p>Aplikasi Kalkulator ini menghormati privasi Anda. Semua perhitungan dan riwayat diproses di perangkat Anda dan tidak dikirim ke server mana pun.</p>
+      <p>Kurs mata uang yang ditampilkan bersifat contoh/offline. Jika Anda menyambungkan ke layanan kurs online, data yang dikirim hanya kode mata uang.</p>
+      <p>Dengan menggunakan aplikasi ini, Anda menyetujui kebijakan ini. Ganti teks ini dengan kebijakan privasi Anda sendiri.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const show = id => { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); $('#'+id).classList.add('active'); };
+
+/* ================= KALKULATOR ================= */
+let raw = '', deg = true, inv = false, history = [], lastView = 'v-calc';
+const fmtNum = n => (+n.toFixed(10)).toLocaleString('id-ID', {maximumFractionDigits:10});
+const group = s => s.replace(/(\d+)(,\d*)?/g, (m,a,b) => a.replace(/\B(?=(\d{3})+(?!\d))/g,'.') + (b||''));
+
+const mainKeys = [
+  ['C','clr'],['%','op'],['⌫','op'],['÷','op'],
+  ['7'],['8'],['9'],['×','op'],
+  ['4'],['5'],['6'],['−','op'],
+  ['1'],['2'],['3'],['+','op'],
+  ['SCI','op'],['0'],[','],['=','eq']
+];
+const sciKeys = () => [
+  ['INV'],[deg?'RAD':'DEG'],['x!'],
+  [inv?'sin⁻¹':'sin'],[inv?'cos⁻¹':'cos'],[inv?'tan⁻¹':'tan'],
+  [inv?'eˣ':'ln'],[inv?'10ˣ':'log'],['xʸ'],
+  ['π'],['e'],['√'],
+  ['00'],['( )'],['x²']
+];
+function render(){
+  $('#main').innerHTML = mainKeys.map(([k,c]) => `<button class="${c||''}" data-k="${k}">${k==='SCI'?'⇄':k}</button>`).join('');
+  $('#sci').innerHTML = sciKeys().map(([k]) => `<button data-k="${k}">${k}</button>`).join('');
+  $('#modeLbl').textContent = deg ? 'DEG' : 'RAD';
+  $('#expr').textContent = group(raw);
+}
+const fact = n => { if(n<0||n%1) return NaN; let r=1; for(let i=2;i<=n;i++) r*=i; return r; };
+function evaluate(s){
+  let open = (s.match(/\(/g)||[]).length - (s.match(/\)/g)||[]).length;
+  s += ')'.repeat(Math.max(open,0));
+  const t = deg ? x=>x*Math.PI/180 : x=>x, f = deg ? x=>x*180/Math.PI : x=>x;
+  const env = {
+    sin:x=>Math.sin(t(x)), cos:x=>Math.cos(t(x)), tan:x=>Math.tan(t(x)),
+    asin:x=>f(Math.asin(x)), acos:x=>f(Math.acos(x)), atan:x=>f(Math.atan(x)),
+    ln:Math.log, log:Math.log10, sqrt:Math.sqrt, fact, exp:Math.exp, pw10:x=>10**x
+  };
+  let e = s.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/,/g,'.')
+    .replace(/π/g,'(Math.PI)').replace(/\be\b/g,'(Math.E)')
+    .replace(/√\(/g,'sqrt(').replace(/eˣ\(/g,'exp(').replace(/10ˣ\(/g,'pw10(')
+    .replace(/sin⁻¹\(/g,'asin(').replace(/cos⁻¹\(/g,'acos(').replace(/tan⁻¹\(/g,'atan(')
+    .replace(/(\d+(?:\.\d+)?)!/g,'fact($1)').replace(/(\d+(?:\.\d+)?)%/g,'($1/100)')
+    .replace(/\^/g,'**');
+  if(/[^0-9a-zA-Z_+\-*\/().\s,]/.test(e)) return NaN;
+  try { return Function(...Object.keys(env), '"use strict";return ('+e+')')(...Object.values(env)); }
+  catch { return NaN; }
+}
+function preview(){
+  if(!raw){ $('#res').textContent=''; return; }
+  const v = evaluate(raw);
+  $('#res').textContent = (isFinite(v) && /[-+×÷−%^!(]|sin|cos|tan|ln|log|√/.test(raw.slice(1))) ? '=' + fmtNum(v) : '';
+}
+function press(k){
+  const last = raw.slice(-1);
+  if(k==='C') raw='';
+  else if(k==='⌫') raw = raw.replace(/(sin⁻¹\(|cos⁻¹\(|tan⁻¹\(|sin\(|cos\(|tan\(|ln\(|log\(|eˣ\(|10ˣ\(|√\(|.)$/,'');
+  else if(k==='='){
+    if(!raw) return;
+    const v = evaluate(raw);
+    if(!isFinite(v)){ $('#res').textContent='Error'; return; }
+    history.unshift({e:raw, r:fmtNum(v)});
+    raw = fmtNum(v).replace(/\./g,''); 
+  }
+  else if(k==='SCI'){ $('#app').classList.toggle('sci-on'); }
+  else if(k==='INV'){ inv=!inv; }
+  else if(k==='RAD'||k==='DEG'){ deg=!deg; }
+  else if(['+','−','×','÷'].includes(k)){
+    if(!raw && k!=='−') return;
+    if(['+','−','×','÷'].includes(last)) raw = raw.slice(0,-1);
+    raw += k;
+  }
+  else if(k===','){ const seg = raw.split(/[^0-9,]/).pop(); if(!seg.includes(',')) raw += seg ? ',' : '0,'; }
+  else if(k==='( )'){
+    const o=(raw.match(/\(/g)||[]).length, c=(raw.match(/\)/g)||[]).length;
+    raw += (o>c && /[\d)πe%!]/.test(last)) ? ')' : '(';
+  }
+  else if(k==='x²') raw += '^2';
+  else if(k==='xʸ') raw += '^';
+  else if(k==='x!') raw += '!';
+  else if(['sin','cos','tan','ln','log','sin⁻¹','cos⁻¹','tan⁻¹','eˣ','10ˣ'].includes(k)) raw += k+'(';
+  else if(k==='√') raw += '√(';
+  else if(k==='%') raw += '%';
+  else raw += k; // angka, π, e, 00
+  render(); preview();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('#v-calc [data-k]'); if(b) press(b.dataset.k);
+});
+
+/* Riwayat */
+function openHist(){
+  $('#hlist').innerHTML = history.slice().reverse().map(h =>
+    `<div data-e="${h.e}"><small>${group(h.e)}</small><b>=${h.r}</b></div>`).join('');
+  $('#hist').classList.add('show'); $('#bHist').classList.add('on');
+}
+function closeHist(){ $('#hist').classList.remove('show'); $('#bHist').classList.remove('on'); }
+$('#bHist').onclick = () => $('#hist').classList.contains('show') ? closeHist() : openHist();
+$('#hBack').onclick = closeHist; $('#hEq').onclick = closeHist;
+$('#hClear').onclick = () => { history=[]; openHist(); };
+$('#hlist').onclick = e => { const d=e.target.closest('[data-e]'); if(d){ raw=d.dataset.e; render(); preview(); closeHist(); } };
+
+/* ================= KONVERTER ================= */
+const CUR = { // nilai 1 unit = ... IDR  (ganti / sambungkan ke API kurs sesuai kebutuhan)
+  IDR:{n:'Rupiah Indonesia',r:1}, USD:{n:'Dolar Amerika',r:18180}, JPY:{n:'Yen Jepang',r:114.2},
+  EUR:{n:'Euro',r:21000}, SGD:{n:'Dolar Singapura',r:13900}, MYR:{n:'Ringgit Malaysia',r:4300}
+};
+const UNITS = {
+  Panjang:{def:['Kaki','Sentimeter','Inci'],u:{Kilometer:1000,Meter:1,Sentimeter:.01,Milimeter:.001,Inci:.0254,Kaki:.3048,Mil:1609.344}},
+  Area:{def:['Meter²','Hektare','Acre'],u:{'Kilometer²':1e6,'Meter²':1,Hektare:1e4,'Sentimeter²':1e-4,Acre:4046.8564224}},
+  Volume:{def:['Liter','Mililiter','Galon AS'],u:{Liter:1,Mililiter:.001,'Meter³':1000,'Galon AS':3.785411784}},
+  Waktu:{def:['Jam','Menit','Detik'],u:{Detik:1,Menit:60,Jam:3600,Hari:86400,Minggu:604800}},
+  Massa:{def:['Kilogram','Gram','Pon'],u:{Ton:1000,Kilogram:1,Gram:.001,Miligram:1e-6,Pon:.45359237}}
+};
+let mode='cur', cat='Panjang', sel=['IDR','USD','JPY'], act=0, val='';
+
+const toNum = s => parseFloat((s||'0').replace(',','.')) || 0;
+const outFmt = n => String(+n.toPrecision(15)).replace('.',',');
+function openConv(m){
+  mode=m; val=''; act=0; $('#menu').classList.remove('show');
+  if(m==='cur'){ sel=['IDR','USD','JPY']; val='100'; $('#cTitle').textContent='Konverter Mata Uang Online'; $('#tabs').style.display='none';
+    $('#upd').textContent='Update terakhir: '+new Date().toLocaleString('id-ID'); }
+  else { cat='Panjang'; sel=UNITS[cat].def.slice(); val='1'; $('#cTitle').textContent='Pengonversi Satuan'; $('#tabs').style.display='flex'; $('#upd').textContent=''; renderTabs(); }
+  renderRows(); show('v-conv');
+}
+function renderTabs(){
+  $('#tabs').innerHTML = Object.keys(UNITS).map(c=>`<button class="${c===cat?'on':''}" data-c="${c}">${c}</button>`).join('');
+}
+function renderRows(){
+  const opts = mode==='cur' ? Object.keys(CUR) : Object.keys(UNITS[cat].u);
+  const factor = u => mode==='cur' ? CUR[u].r : UNITS[cat].u[u];
+  const base = toNum(val) * factor(sel[act]);
+  $('#crows').innerHTML = sel.map((u,i)=>{
+    const v = i===act ? (val||'0') : outFmt(base/factor(u));
+    const o = opts.map(x=>`<option value="${x}" ${x===u?'selected':''}>${mode==='cur'?x:x}</option>`).join('');
+    return `<div class="row ${i===act?'act':''}" data-i="${i}">
+      <div class="u"><select data-s="${i}">${o}</select></div>
+      <div class="v">${v}${mode==='cur'?`<span class="sub">${CUR[u].n}</span>`:''}</div></div>`;
+  }).join('');
+}
+$('#crows').addEventListener('click', e=>{ if(e.target.tagName==='SELECT') return; const r=e.target.closest('.row'); if(r && +r.dataset.i!==act){ const cur=$('#crows .row.act .v').textContent; act=+r.dataset.i; val=outFmt(parseFloat(String(r.querySelector('.v').childNodes[0].textContent).replace(',','.'))); renderRows(); }});
+$('#crows').addEventListener('change', e=>{ if(e.target.dataset.s!==undefined){ sel[+e.target.dataset.s]=e.target.value; renderRows(); }});
+$('#tabs').onclick = e => { const c=e.target.dataset.c; if(c){ cat=c; sel=UNITS[c].def.slice(); act=0; val='1'; renderTabs(); renderRows(); } };
+$('#kp').onclick = e => {
+  const b=e.target.closest('button'); if(!b) return; const k=b.dataset.k||b.textContent;
+  if(k==='AC') val=''; else if(k==='⌫') val=val.slice(0,-1);
+  else if(k===','){ if(!val.includes(',')) val+= val?',':'0,'; }
+  else if(val.length<15) val = (val==='0' ? '' : val) + k;
+  renderRows();
+};
+
+/* Navigasi */
+$('#bCur').onclick = () => openConv('cur');
+$('#bUnit').onclick = () => openConv('unit');
+$('#cBack').onclick = () => show('v-calc');
+$('#cMenu').onclick = () => $('#menu').classList.toggle('show');
+$('#goPolicy').onclick = () => { $('#menu').classList.remove('show'); show('v-policy'); };
+$('#pBack').onclick = () => show('v-conv');
+
+render();
+</script>
+</body>
+</html>
